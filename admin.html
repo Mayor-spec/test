@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin Dashboard - Pro</title>
+    <title>Admin Dashboard - AI Quiz Pro</title>
     <style>
         :root { --primary: #4f46e5; --bg: #f8fafc; --text: #1e293b; --success: #10b981; --danger: #ef4444; }
         body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 20px; }
@@ -14,7 +14,6 @@
         button { border: none; padding: 12px 20px; border-radius: 6px; cursor: pointer; font-weight: bold; margin-top: 10px; transition: 0.2s; }
         .btn-primary { background: var(--primary); color: white; width: 100%; }
         .btn-danger { background: var(--danger); color: white; }
-        .btn-success { background: var(--success); color: white; width: 100%; }
         .tabs { display: flex; gap: 15px; margin-bottom: 20px; border-bottom: 2px solid #e2e8f0; }
         .tab-btn { background: none; border: none; padding: 10px; cursor: pointer; color: #64748b; font-weight: bold; }
         .tab-btn.active { color: var(--primary); border-bottom: 2px solid var(--primary); }
@@ -28,8 +27,8 @@
 <body>
 
     <div class="container">
-        <div id="authBox" class="card" style="max-width:400px; margin: 100px auto;">
-            <h2 style="text-align:center">Admin Access</h2>
+        <div id="authBox" class="card" style="max-width:400px; margin: 80px auto;">
+            <h2 style="text-align:center">Admin Login</h2>
             <input type="email" id="email" placeholder="Email">
             <input type="password" id="password" placeholder="Password">
             <button id="loginBtn" class="btn-primary">Login</button>
@@ -42,28 +41,28 @@
             </div>
 
             <div class="tabs">
-                <button class="tab-btn active" id="tab1" onclick="switchTab('create')">Create Quiz</button>
-                <button class="tab-btn" id="tab2" onclick="switchTab('manage')">Manage Banks</button>
-                <button class="tab-btn" id="tab3" onclick="switchTab('results')">View Results</button>
+                <button class="tab-btn active" id="t1" onclick="switchTab('create')">Create Quiz</button>
+                <button class="tab-btn" id="t2" onclick="switchTab('manage')">Manage Banks</button>
+                <button class="tab-btn" id="t3" onclick="switchTab('results')">View Results</button>
             </div>
 
             <div id="createSec">
                 <div class="card">
-                    <h3>Quiz Setup</h3>
-                    <input type="text" id="bankName" placeholder="Bank Name (e.g. CHM 102)">
-                    <input type="number" id="qTimer" placeholder="Seconds per question">
+                    <h3>New Bank Setup</h3>
+                    <input type="text" id="bankName" placeholder="Bank Name (e.g. Organic Chemistry)">
+                    <input type="number" id="qTimer" placeholder="Seconds per question (e.g. 30)">
                     <textarea id="aiText" placeholder="Paste AI Questions here..." style="height: 150px;"></textarea>
-                    <button onclick="parseAIContent()" class="btn-primary">1. Parse Content & Preview</button>
+                    <button onclick="parseAIContent()" class="btn-primary">1. Parse & Preview</button>
                 </div>
                 <div id="previewArea" class="card hidden">
-                    <h3>Parsed Preview</h3>
+                    <h3>Review Parsed Content</h3>
                     <div id="previewList"></div>
-                    <button id="saveBtn" class="btn-success">2. Confirm & Save to Cloud</button>
+                    <button id="saveBtn" style="background:#10b981; color:white; width:100%">2. Confirm & Save to Cloud</button>
                 </div>
             </div>
 
             <div id="manageSec" class="hidden">
-                <div class="card"><table><thead><tr><th>Bank Name</th><th>Action</th></tr></thead><tbody id="bankTable"></tbody></table></div>
+                <div class="card"><table><thead><tr><th>Bank Name</th><th>Timer</th><th>Action</th></tr></thead><tbody id="bankTable"></tbody></table></div>
             </div>
 
             <div id="resultsSec" class="hidden">
@@ -74,7 +73,7 @@
 
     <div id="resModal" class="modal hidden">
         <div class="modal-content">
-            <h2 id="mTitle">Detail</h2>
+            <h2 id="mTitle">Attempt Detail</h2>
             <div id="mList"></div>
             <button onclick="closeModal()" class="btn-primary">Close</button>
         </div>
@@ -100,22 +99,15 @@
 
     let tempQuestions = [];
 
-    // HELPER: Convert LaTeX symbols from PDF to actual characters
+    // Cleanup: Handles Sigma, Pi, and Bond Angles from PDF LaTeX format
     function cleanSymbols(text) {
         return text
-            .replace(/\\sigma/g, '')
-            .replace(/\\pi/g, '')
-            .replace(/\\delta/g, '')
-            .replace(/\\gamma/g, '')
-            .replace(/\\alpha/g, '')
-            .replace(/\\beta/g, '')
-            .replace(/\$pi\(\\pi\)\$/g, '')
-            .replace(/\(\\sigma\)/g, '')
+            .replace(/\\sigma/g, '').replace(/sigma/gi, '')
+            .replace(/\\pi/g, '').replace(/pi/gi, '')
             .replace(/\$109\.5\$/g, '109.5°')
             .replace(/\$120\^\{\\circ\}\$/g, '120°')
             .replace(/\$180\^\{\\circ\}\$/g, '180°')
-            .replace(/\$sp\^3\$/g, 'sp³')
-            .replace(/\$sp\^2\$/g, 'sp²');
+            .replace(/\$sp\^3\$/g, 'sp³').replace(/\$sp\^2\$/g, 'sp²');
     }
 
     document.getElementById('loginBtn').onclick = () => {
@@ -150,6 +142,7 @@
             const question = cleanSymbols(lines[0].replace(/^\d+[\.\)\s]*/, ""));
             const options = lines.filter(l => l.match(/^[A-D][\.\)\s-]/i)).map(o => cleanSymbols(o));
             
+            // Fix Answer: Specifically targeting the character after the colon
             const ansLine = lines.find(l => l.toLowerCase().includes("correct answer"));
             let correct = "A";
             if (ansLine) {
@@ -158,8 +151,8 @@
                 if (letterMatch) correct = letterMatch[0].toUpperCase();
             }
 
-            const expLine = lines.find(l => l.toLowerCase().includes("explanation"));
-            const explanation = cleanSymbols(expLine ? expLine.split(/explanation:/i).pop().trim() : "No explanation.");
+            const expLine = lines.find(l => l.toLowerCase().match(/explanation|rationale/));
+            const explanation = cleanSymbols(expLine ? expLine.split(/explanation:|rationale:/i).pop().trim() : "See source material.");
 
             if (question && options.length > 0) {
                 tempQuestions.push({ question, options, correct, explanation });
@@ -170,7 +163,7 @@
             <div class="preview-item">
                 <b>${i+1}. ${q.question}</b><br>
                 <div style="font-size:0.85em; color:#64748b; margin:5px 0;">${q.options.join(' | ')}</div>
-                <span style="color:green; font-weight:bold;">Correct: ${q.correct}</span>
+                <span style="color:green; font-weight:bold;">Parsed Ans: ${q.correct}</span> | <small><i>${q.explanation}</i></small>
             </div>
         `).join('');
         document.getElementById('previewArea').classList.remove('hidden');
@@ -184,8 +177,8 @@
                 questions: tempQuestions,
                 date: new Date()
             });
-            alert("Quiz Saved!"); location.reload();
-        } catch(e) { alert("Permission Error: " + e.message); }
+            alert("Quiz Saved Successfully!"); location.reload();
+        } catch(e) { alert("Permission Error. Ensure you are logged in as admin."); }
     };
 
     async function loadBanks() {
@@ -193,7 +186,7 @@
         const body = document.getElementById('bankTable');
         body.innerHTML = "";
         snap.forEach(d => {
-            body.innerHTML += `<tr><td>${d.data().bankName}</td><td><button onclick="delBank('${d.id}')" class="btn-danger">Delete</button></td></tr>`;
+            body.innerHTML += `<tr><td>${d.data().bankName}</td><td>${d.data().timePerQuestion}s</td><td><button onclick="delBank('${d.id}')" class="btn-danger">Delete</button></td></tr>`;
         });
     }
     window.delBank = async (id) => { if(confirm("Delete Bank?")) { await deleteDoc(doc(db, "quizzes", id)); loadBanks(); }};
@@ -204,21 +197,21 @@
         body.innerHTML = "";
         snap.forEach(d => {
             const r = d.data();
-            body.innerHTML += `<tr><td>${r.studentName}</td><td>${r.quizName}</td><td>${r.score}%</td><td><button onclick="viewDetail('${d.id}')" class="btn-primary">View</button></td></tr>`;
+            body.innerHTML += `<tr><td>${r.studentName}</td><td>${r.quizName}</td><td>${r.score}%</td><td><button onclick="viewDetail('${d.id}')" class="btn-primary">View Breakdown</button></td></tr>`;
         });
     }
 
     window.viewDetail = async (id) => {
         const snap = await getDocs(collection(db, "results"));
         const r = snap.docs.find(d => d.id === id).data();
-        document.getElementById('mTitle').innerText = r.studentName + " Attempt Detail";
+        document.getElementById('mTitle').innerText = r.studentName;
         document.getElementById('mList').innerHTML = r.detailedAnswers.map(a => `
             <div style="margin-bottom:15px; padding:15px; border-radius:10px; background:${a.isCorrect ? '#dcfce7':'#fee2e2'}">
                 <b>${a.question}</b><br>
-                <div style="font-size:0.85em; margin:8px 0;">${a.options ? a.options.join('<br>') : 'Options not saved.'}</div>
+                <div style="font-size:0.85em; margin:8px 0;">${a.options.join('<br>')}</div>
                 <hr style="opacity:0.1">
                 <b>Picked: ${a.selected} | Correct: ${a.correct}</b><br>
-                <small><i> ${a.explanation}</i></small>
+                <div style="font-size:0.8em; margin-top:5px; font-style:italic"> Explanator: ${a.explanation}</div>
             </div>
         `).join('');
         document.getElementById('resModal').classList.remove('hidden');

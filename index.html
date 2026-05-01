@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Student Portal - Live Quiz</title>
+    <title>Student Portal - Live Exam</title>
     <style>
         :root { --primary: #4f46e5; --bg: #f1f5f9; --text: #1e293b; --success: #22c55e; --danger: #ef4444; }
         body { font-family: 'Inter', sans-serif; background: var(--bg); margin: 0; padding: 20px; }
@@ -25,22 +25,25 @@
 <body>
     <div class="container">
         <div id="setup" class="card">
-            <h1>Student Portal</h1>
-            <input type="text" id="sName" placeholder="Full Name">
-            <select id="sQuiz"><option>Loading exams...</option></select>
+            <h1>Student Login</h1>
+            <input type="text" id="sName" placeholder="Enter Your Full Name">
+            <select id="sQuiz"><option>Fetching Exams...</option></select>
             <button onclick="startExam()" class="btn-main">Start Examination</button>
         </div>
+
         <div id="quiz" class="hidden">
             <div id="tLabel" style="text-align:right; font-weight:bold; color:var(--danger)">0s</div>
             <div class="timer-wrap"><div id="timerBar"></div></div>
             <div class="card"><h2 id="qText">Question</h2><div id="opts"></div></div>
         </div>
+
         <div id="finish" class="hidden">
             <div class="card" style="text-align:center"><h1>Score: <span id="fScore">0%</span></h1><button onclick="location.reload()" style="background:#64748b; color:white">Take Another Test</button></div>
             <div id="reviewList"></div>
         </div>
     </div>
-    <div class="admin-nav"><a href="admin.html" class="btn-admin">⚙️ Admin Dashboard</a></div>
+
+    <div class="admin-nav"><a href="admin.html" class="btn-admin">⚙️ Admin Dashboard Access</a></div>
 
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
@@ -60,6 +63,7 @@
 
     let quizzes = [], activeQuiz = null, curIdx = 0, score = 0, detailed = [], timer = null;
 
+    // SCATTER ALGORITHM: Fisher-Yates Shuffle
     function shuffle(array) {
         for (let i = array.length - 1; i > 0; i--) {
             const j = Math.floor(Math.random() * (i + 1));
@@ -78,16 +82,19 @@
     window.startExam = () => {
         const name = document.getElementById('sName').value;
         const selected = quizzes.find(q => q.id === document.getElementById('sQuiz').value);
-        if(!name || !selected) return alert("Fill name and select exam!");
+        if(!name || !selected) return alert("Fill details!");
 
-        activeQuiz = JSON.parse(JSON.stringify(selected));
-        activeQuiz.questions = shuffle(activeQuiz.questions);
+        // SMART SCATTER LOGIC
+        activeQuiz = JSON.parse(JSON.stringify(selected)); // Clone
+        activeQuiz.questions = shuffle(activeQuiz.questions); // Scatter Questions
 
         activeQuiz.questions.forEach(q => {
-            const correctLine = q.options.find(o => o.trim().toUpperCase().startsWith(q.correct));
-            const correctText = correctLine.replace(/^[A-D][\.\)\s-]/i, "").trim();
-            let cleanOptions = q.options.map(o => o.replace(/^[A-D][\.\)\s-]/i, "").trim());
-            cleanOptions = shuffle(cleanOptions);
+            const correctText = q.options.find(o => o.trim().toUpperCase().startsWith(q.correct))
+                                 .replace(/^[A-D][\.\)\s-]*/i, "").trim();
+            
+            let cleanOptions = q.options.map(o => o.replace(/^[A-D][\.\)\s-]*/i, "").trim());
+            cleanOptions = shuffle(cleanOptions); // Scatter Options
+
             q.options = cleanOptions.map((text, i) => `${String.fromCharCode(65 + i)}) ${text}`);
             q.correct = String.fromCharCode(65 + cleanOptions.indexOf(correctText));
         });
@@ -127,12 +134,14 @@
         const isCorrect = picked === q.correct;
         const all = document.querySelectorAll('.opt-btn');
         all.forEach(b => b.disabled = true);
+
         if(isCorrect) { score++; if(btn) btn.classList.add('correct'); }
-        else { if(btn) btn.classList.add('wrong'); all.forEach(b => { if(b.innerText.trim().charAt(0).toUpperCase() === q.correct) b.classList.add('correct'); }); }
-        
-        // CRITICAL: Save full options list to detailed for later review
+        else {
+            if(btn) btn.classList.add('wrong');
+            all.forEach(b => { if(b.innerText.trim().charAt(0).toUpperCase() === q.correct) b.classList.add('correct'); });
+        }
+
         detailed.push({ question: q.question, options: q.options, selected: picked, correct: q.correct, explanation: q.explanation, isCorrect });
-        
         setTimeout(() => { curIdx++; if(curIdx < activeQuiz.questions.length) renderQ(); else finishExam(); }, 1500);
     }
 
@@ -141,15 +150,19 @@
         document.getElementById('finish').classList.remove('hidden');
         const final = Math.round((score/activeQuiz.questions.length)*100);
         document.getElementById('fScore').innerText = final + "%";
-        document.getElementById('reviewList').innerHTML = '<h2 style="margin-top:20px">Answer Review</h2>' + detailed.map(a => `
+
+        document.getElementById('reviewList').innerHTML = '<h2 style="margin-top:20px">Detailed Review</h2>' + detailed.map(a => `
             <div class="card" style="background:${a.isCorrect ? '#dcfce7':'#fee2e2'}; border-left:5px solid ${a.isCorrect ? '#22c55e':'#ef4444'}">
                 <b>${a.question}</b><br>
-                <div style="font-size:0.85em; margin:10px 0;">${a.options ? a.options.join('<br>') : 'Options not saved.'}</div>
+                <div style="font-size:0.85em; margin:10px 0;">${a.options.join('<br>')}</div>
                 <hr style="opacity:0.1">
-                <b>Picked: ${a.selected} | Correct: ${a.correct}</b><br>
-                <small><i>💡 ${a.explanation}</i></small>
+                <b>Your Pick: ${a.selected} | Correct: ${a.correct}</b><br>
+                <div style="margin-top:10px; background:white; padding:10px; border-radius:6px; font-size:0.9em; border: 1px solid rgba(0,0,0,0.05)">
+                    <strong>💡 AI Explanator:</strong> ${a.explanation}
+                </div>
             </div>
         `).join('');
+
         await addDoc(collection(db, "results"), { studentName: document.getElementById('sName').value, quizName: activeQuiz.bankName, score: final, detailedAnswers: detailed, date: new Date().toLocaleString() });
     }
 </script>
