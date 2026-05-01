@@ -3,94 +3,91 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pro Admin Panel</title>
+    <title>Admin Panel - AI MCQ Pro</title>
     <style>
         :root { --primary: #4f46e5; --bg: #f8fafc; --text: #1e293b; --success: #10b981; --danger: #ef4444; }
         body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 20px; }
-        
+        .container { max-width: 1000px; margin: 0 auto; }
         .hidden { display: none !important; }
         .card { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); margin-bottom: 20px; }
         
-        /* Auth */
-        #authBox { max-width: 400px; margin: 100px auto; text-align: center; }
+        /* Navigation */
+        .nav-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .tabs { display: flex; gap: 15px; margin-bottom: 20px; border-bottom: 2px solid #e2e8f0; }
+        .tab-btn { background: none; border: none; padding: 10px; cursor: pointer; color: #64748b; font-weight: bold; }
+        .tab-btn.active { color: var(--primary); border-bottom: 2px solid var(--primary); }
+
         input, textarea, select { width: 100%; padding: 12px; margin-top: 10px; border: 1px solid #e2e8f0; border-radius: 6px; box-sizing: border-box; }
-        
-        button { border: none; padding: 12px 20px; border-radius: 6px; cursor: pointer; font-weight: bold; margin-top: 10px; transition: 0.2s; }
+        button { border: none; padding: 12px 20px; border-radius: 6px; cursor: pointer; font-weight: bold; margin-top: 10px; }
         .btn-primary { background: var(--primary); color: white; width: 100%; }
         .btn-danger { background: var(--danger); color: white; }
         .btn-success { background: var(--success); color: white; width: 100%; }
 
-        /* Navigation Tabs */
-        .tabs { display: flex; gap: 15px; margin-bottom: 20px; border-bottom: 2px solid #e2e8f0; }
-        .tab-btn { background: none; color: #64748b; padding: 10px; border-radius: 0; margin-top: 0; }
-        .tab-btn.active { color: var(--primary); border-bottom: 2px solid var(--primary); }
-
-        /* Modal */
+        /* Modal for Detailed Results */
         .modal { position: fixed; inset: 0; background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center; z-index: 9999; }
         .modal-content { background: white; padding: 30px; border-radius: 15px; width: 90%; max-width: 600px; max-height: 85vh; overflow-y: auto; }
 
-        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        table { width: 100%; border-collapse: collapse; }
         th, td { text-align: left; padding: 12px; border-bottom: 1px solid #f1f5f9; }
-        
-        .preview-item { border-bottom: 1px solid #eee; padding: 10px 0; }
+        .preview-item { border-bottom: 1px solid #eee; padding: 15px 0; }
     </style>
 </head>
 <body>
 
-    <div class="container" style="max-width: 1000px; margin: 0 auto;">
-        <div id="authBox" class="card">
-            <h2>Admin Login</h2>
+    <div class="container">
+        <div id="authBox" class="card" style="max-width:400px; margin: 100px auto;">
+            <h2 style="text-align:center">Admin Access</h2>
             <input type="email" id="email" placeholder="Email">
             <input type="password" id="password" placeholder="Password">
-            <button id="loginBtn" class="btn-primary">Access Dashboard</button>
+            <button id="loginBtn" class="btn-primary">Login</button>
         </div>
 
         <div id="dashboard" class="hidden">
-            <div style="display: flex; justify-content: space-between; align-items: center;">
+            <div class="nav-header">
                 <h1>Admin Panel</h1>
-                <button id="logoutBtn" class="btn-danger" style="margin-top:0">Logout</button>
+                <button id="logoutBtn" class="btn-danger">Logout</button>
             </div>
 
             <div class="tabs">
-                <button class="tab-btn active" id="tab1" onclick="switchTab('create')">Create Quiz</button>
-                <button class="tab-btn" id="tab2" onclick="switchTab('manage')">Manage Banks</button>
-                <button class="tab-btn" id="tab3" onclick="switchTab('results')">Student Results</button>
+                <button class="tab-btn active" onclick="switchTab('create')">Create Quiz</button>
+                <button class="tab-btn" onclick="switchTab('manage')">Manage Banks</button>
+                <button class="tab-btn" onclick="switchTab('results')">Student Results</button>
             </div>
 
             <div id="createSec">
                 <div class="card">
-                    <h3>Quiz Details</h3>
-                    <input type="text" id="bankName" placeholder="Quiz Bank Name">
-                    <input type="number" id="qTimer" placeholder="Timer (Seconds per Question)">
-                    <textarea id="aiText" placeholder="Paste AI MCQs here..." style="height: 120px;"></textarea>
-                    <button onclick="parseContent()" class="btn-primary">Parse Content</button>
+                    <h3>Quiz Setup</h3>
+                    <input type="text" id="bankName" placeholder="Bank Name (e.g. Physics 101)">
+                    <input type="number" id="qTimer" placeholder="Timer (Seconds per question)">
+                    <textarea id="aiText" placeholder="Paste AI MCQs here..." style="height: 150px;"></textarea>
+                    <button onclick="parseContent()" class="btn-primary">1. Parse AI Content</button>
                 </div>
                 <div id="previewArea" class="card hidden">
-                    <h3>Review Questions</h3>
+                    <h3>Review Parsed Data</h3>
                     <div id="previewList"></div>
-                    <button id="saveBtn" class="btn-success">Save to Cloud</button>
+                    <button id="saveBtn" class="btn-success">2. Confirm & Save to Cloud</button>
                 </div>
             </div>
 
             <div id="manageSec" class="hidden">
                 <div class="card">
-                    <table><thead><tr><th>Bank Name</th><th>Actions</th></tr></thead><tbody id="bankTable"></tbody></table>
+                    <table><thead><tr><th>Bank Name</th><th>Timer</th><th>Action</th></tr></thead><tbody id="bankTable"></tbody></table>
                 </div>
             </div>
 
             <div id="resultsSec" class="hidden">
                 <div class="card">
-                    <table><thead><tr><th>Student</th><th>Score</th><th>Date</th><th>Action</th></tr></thead><tbody id="resTable"></tbody></table>
+                    <table><thead><tr><th>Student</th><th>Quiz</th><th>Score</th><th>Action</th></tr></thead><tbody id="resTable"></tbody></table>
                 </div>
             </div>
         </div>
     </div>
 
-    <div id="resultModal" class="modal hidden">
+    <div id="resModal" class="modal hidden">
         <div class="modal-content">
-            <h2 id="modalTitle">Student Detail</h2>
-            <div id="modalList"></div>
-            <button onclick="closeModal()" class="btn-primary">Close</button>
+            <h2 id="mTitle">Attempt Detail</h2>
+            <div id="mList"></div>
+            <button onclick="closeModal()" class="btn-primary">Close Details</button>
         </div>
     </div>
 
@@ -114,7 +111,7 @@
 
     let tempQuestions = [];
 
-    // AUTH
+    // AUTH LOGIC
     document.getElementById('loginBtn').onclick = () => {
         signInWithEmailAndPassword(auth, document.getElementById('email').value, document.getElementById('password').value).catch(e => alert(e.message));
     };
@@ -124,31 +121,44 @@
     });
     document.getElementById('logoutBtn').onclick = () => signOut(auth);
 
-    // TABS
+    // TAB SWITCHING
     window.switchTab = (t) => {
         document.getElementById('createSec').classList.toggle('hidden', t !== 'create');
         document.getElementById('manageSec').classList.toggle('hidden', t !== 'manage');
         document.getElementById('resultsSec').classList.toggle('hidden', t !== 'results');
-        document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.id.includes(t==='create'?'1':t==='manage'?'2':'3')));
+        document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.toggle('active', btn.innerText.toLowerCase().includes(t)));
         if(t === 'manage') loadBanks();
         if(t === 'results') loadResults();
     };
 
-    // PARSER
+    // PARSER (WITH EXPLANATION)
     window.parseContent = () => {
         const text = document.getElementById('aiText').value;
         tempQuestions = [];
         const blocks = text.split(/\n(?=\d+[\.\)])/);
+        
         blocks.forEach(b => {
             const lines = b.split('\n').filter(l => l.trim());
             if(lines.length < 3) return;
+            
             const q = lines[0].replace(/^\d+[\.\)]\s*/, "");
             const opts = lines.filter(l => l.trim().match(/^[A-D][\.\)]/i));
             const ansLine = lines.find(l => l.toLowerCase().includes("correct"));
+            const expLine = lines.find(l => l.toLowerCase().includes("explanation"));
+            
             const cor = ansLine ? ansLine.split(/[:\-]/).pop().trim().charAt(0).toUpperCase() : "A";
-            tempQuestions.push({ question: q, options: opts, correct: cor });
+            const exp = expLine ? expLine.split(/explanation:/i)[1].trim() : "No explanation provided.";
+
+            tempQuestions.push({ question: q, options: opts, correct: cor, explanation: exp });
         });
-        document.getElementById('previewList').innerHTML = tempQuestions.map(q => `<div class="preview-item"><b>${q.question}</b><br><small>${q.options.join(' | ')}</small></div>`).join('');
+
+        document.getElementById('previewList').innerHTML = tempQuestions.map(q => `
+            <div class="preview-item">
+                <b>${q.question}</b><br>
+                <small style="color:green">Ans: ${q.correct}</small> | 
+                <small style="font-style:italic">Exp: ${q.explanation}</small>
+            </div>
+        `).join('');
         document.getElementById('previewArea').classList.remove('hidden');
     };
 
@@ -159,19 +169,21 @@
             questions: tempQuestions,
             date: new Date()
         });
-        alert("Saved!"); location.reload();
+        alert("Quiz Bank Saved Successfully!");
+        location.reload();
     };
 
-    // MANAGE & RESULTS
+    // MANAGEMENT & RESULTS
     async function loadBanks() {
         const snap = await getDocs(collection(db, "quizzes"));
         const body = document.getElementById('bankTable');
         body.innerHTML = "";
         snap.forEach(d => {
-            body.innerHTML += `<tr><td>${d.data().bankName}</td><td><button onclick="delBank('${d.id}')" class="btn-danger">Delete</button></td></tr>`;
+            const b = d.data();
+            body.innerHTML += `<tr><td>${b.bankName}</td><td>${b.timePerQuestion}s</td><td><button onclick="delBank('${d.id}')" class="btn-danger">Delete</button></td></tr>`;
         });
     }
-    window.delBank = async (id) => { if(confirm("Delete Bank?")) { await deleteDoc(doc(db, "quizzes", id)); loadBanks(); }};
+    window.delBank = async (id) => { if(confirm("Delete this bank?")) { await deleteDoc(doc(db, "quizzes", id)); loadBanks(); }};
 
     async function loadResults() {
         const snap = await getDocs(query(collection(db, "results"), orderBy("date", "desc")));
@@ -179,25 +191,27 @@
         body.innerHTML = "";
         snap.forEach(d => {
             const r = d.data();
-            body.innerHTML += `<tr><td>${r.studentName}</td><td>${r.score}%</td><td>${r.date}</td><td><button onclick="viewDetail('${d.id}')" class="btn-primary">Details</button></td></tr>`;
+            body.innerHTML += `<tr><td>${r.studentName}</td><td>${r.quizName}</td><td>${r.score}%</td><td><button onclick="viewDetail('${d.id}')" class="btn-primary">View Details</button></td></tr>`;
         });
     }
 
     window.viewDetail = async (id) => {
         const snap = await getDocs(collection(db, "results"));
         const r = snap.docs.find(d => d.id === id).data();
-        document.getElementById('modalTitle').innerText = r.studentName + " - " + r.quizName;
-        document.getElementById('modalList').innerHTML = r.detailedAnswers.map(a => `
-            <div style="margin-bottom:10px; padding:10px; border-radius:8px; background:${a.isCorrect ? '#dcfce7':'#fee2e2'}">
+        document.getElementById('mTitle').innerText = r.studentName + "'s Performance";
+        document.getElementById('mList').innerHTML = r.detailedAnswers.map(a => `
+            <div style="margin-bottom:15px; padding:15px; border-radius:10px; background:${a.isCorrect ? '#dcfce7':'#fee2e2'}">
                 <b>${a.question}</b>
-                <div style="font-size:0.8em; margin:5px 0;">${a.options ? a.options.join('<br>') : ''}</div>
-                <hr>
-                <b>Picked: ${a.selected} | Correct: ${a.correct}</b>
+                <div style="font-size:0.85em; margin:8px 0; border-top:1px solid rgba(0,0,0,0.1); padding-top:5px;">
+                    ${a.options ? a.options.join('<br>') : ''}
+                </div>
+                <b>Picked: ${a.selected} | Correct: ${a.correct}</b><br>
+                <div style="font-size:0.85em; margin-top:5px; font-style:italic">💡 Explanation: ${a.explanation || 'N/A'}</div>
             </div>
         `).join('');
-        document.getElementById('resultModal').classList.remove('hidden');
+        document.getElementById('resModal').classList.remove('hidden');
     };
-    window.closeModal = () => document.getElementById('resultModal').classList.add('hidden');
+    window.closeModal = () => document.getElementById('resModal').classList.add('hidden');
 </script>
 </body>
 </html>
