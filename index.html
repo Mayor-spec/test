@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Student Portal</title>
+    <style>
+        :root { --primary: #4f46e5; --bg: #f1f5f9; --text: #1e293b; --success: #22c55e; --danger: #ef4444; }
+        body { font-family: 'Inter', sans-serif; background: var(--bg); margin: 0; padding: 20px; }
+        .container { max-width: 600px; margin: 0 auto; }
+        .card { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); margin-bottom: 20px; }
+        .hidden { display: none !important; }
+        
+        .timer-bar { height: 6px; background: #e2e8f0; border-radius: 3px; overflow: hidden; margin-bottom: 20px; }
+        #timerFill { height: 100%; background: var(--danger); width: 100%; transition: linear 1s; }
+
+        input, select { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #cbd5e1; border-radius: 8px; }
+        button { width: 100%; padding: 14px; border-radius: 8px; cursor: pointer; font-weight: bold; border: none; margin-top: 10px; }
+        .btn-start { background: var(--primary); color: white; }
+        
+        .opt-btn { background: #f8fafc; border: 1px solid #e2e8f0; text-align: left; margin-bottom: 8px; }
+        .opt-btn.correct { background: #dcfce7; border-color: var(--success); color: #166534; }
+        .opt-btn.wrong { background: #fee2e2; border-color: var(--danger); color: #991b1b; }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <div id="setup" class="card">
+            <h1>Start Exam</h1>
+            <input type="text" id="sName" placeholder="Full Name">
+            <select id="sQuiz"><option>Loading...</option></select>
+            <button onclick="start()" class="btn-start">Begin Test</button>
+        </div>
+
+        <div id="quiz" class="hidden">
+            <div id="tLabel" style="text-align:right; font-weight:bold; color:var(--danger)">0s</div>
+            <div class="timer-bar"><div id="timerFill"></div></div>
+            <div class="card">
+                <h2 id="qText">Question</h2>
+                <div id="opts"></div>
+            </div>
+        </div>
+
+        <div id="finish" class="hidden">
+            <div class="card" style="text-align:center">
+                <h1>Result: <span id="fScore">0%</span></h1>
+                <button onclick="location.reload()" style="background:#64748b; color:white">Exit</button>
+            </div>
+            <div id="reviewList"></div>
+        </div>
+    </div>
+
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
+    import { getFirestore, collection, getDocs, addDoc } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js";
+
+    const firebaseConfig = {
+        apiKey: "AIzaSyACKQAD1sIUGdOjncQkfjMrmGh4x_U0v74",
+        authDomain: "quiz-76725.firebaseapp.com",
+        projectId: "quiz-76725",
+        storageBucket: "quiz-76725.firebasestorage.app",
+        messagingSenderId: "352657593612",
+        appId: "1:352657593612:web:80054cb0dcdc3a97c1a529"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    let quizzes = [], activeQuiz = null, curIdx = 0, score = 0, detailed = [], timer = null;
+
+    window.onload = async () => {
+        const snap = await getDocs(collection(db, "quizzes"));
+        const sel = document.getElementById('sQuiz'); sel.innerHTML = "";
+        snap.forEach(d => { quizzes.push({id: d.id, ...d.data()}); sel.innerHTML += `<option value="${d.id}">${d.data().bankName}</option>`; });
+    };
+
+    window.start = () => {
+        const name = document.getElementById('sName').value;
+        activeQuiz = quizzes.find(q => q.id === document.getElementById('sQuiz').value);
+        if(!name || !activeQuiz) return alert("Fill details!");
+        document.getElementById('setup').classList.add('hidden');
+        document.getElementById('quiz').classList.remove('hidden');
+        showQ();
+    };
+
+    function showQ() {
+        const q = activeQuiz.questions[curIdx];
+        document.getElementById('qText').innerText = q.question;
+        const cont = document.getElementById('opts'); cont.innerHTML = "";
+        q.options.forEach(o => {
+            const b = document.createElement('button'); b.className = 'opt-btn'; b.innerText = o;
+            b.onclick = () => answer(o, b); cont.appendChild(b);
+        });
+        startT();
+    }
+
+    function startT() {
+        clearInterval(timer);
+        let time = parseInt(activeQuiz.timePerQuestion) || 30;
+        const total = time;
+        timer = setInterval(() => {
+            time--;
+            document.getElementById('tLabel').innerText = time + "s";
+            document.getElementById('timerFill').style.width = (time/total)*100 + "%";
+            if(time <= 0) { clearInterval(timer); answer(null, null); }
+        }, 1000);
+    }
+
+    async function answer(sel, btn) {
+        clearInterval(timer);
+        const q = activeQuiz.questions[curIdx];
+        const picked = sel ? sel.trim().charAt(0).toUpperCase() : "TIMEOUT";
+        const isCorrect = picked === q.correct;
+        
+        if(isCorrect) { score++; if(btn) btn.classList.add('correct'); }
+        else if(btn) btn.classList.add('wrong');
+
+        detailed.push({ question: q.question, options: q.options, selected: picked, correct: q.correct, isCorrect });
+
+        setTimeout(() => {
+            curIdx++;
+            if(curIdx < activeQuiz.questions.length) showQ();
+            else finish();
+        }, 1000);
+    }
+
+    async function finish() {
+        document.getElementById('quiz').classList.add('hidden');
+        document.getElementById('finish').classList.remove('hidden');
+        const final = Math.round((score/activeQuiz.questions.length)*100);
+        document.getElementById('fScore').innerText = final + "%";
+
+        const rev = document.getElementById('reviewList');
+        rev.innerHTML = detailed.map(a => `
+            <div class="card" style="background:${a.isCorrect ? '#dcfce7':'#fee2e2'}">
+                <b>${a.question}</b><br>
+                <small>${a.options.join('<br>')}</small><hr>
+                Picked: ${a.selected} | Correct: ${a.correct}
+            </div>
+        `).join('');
+
+        await addDoc(collection(db, "results"), {
+            studentName: document.getElementById('sName').value,
+            quizName: activeQuiz.bankName,
+            score: final,
+            detailedAnswers: detailed,
+            date: new Date().toLocaleString()
+        });
+    }
+</script>
+</body>
+</html>
