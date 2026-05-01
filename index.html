@@ -7,20 +7,24 @@
     <style>
         :root { --primary: #4f46e5; --bg: #f1f5f9; --text: #1e293b; --success: #22c55e; --danger: #ef4444; }
         body { font-family: 'Inter', sans-serif; background: var(--bg); margin: 0; padding: 20px; }
-        .container { max-width: 600px; margin: 0 auto; }
+        .container { max-width: 600px; margin: 0 auto; padding-bottom: 80px; } /* Space for footer */
         .card { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); margin-bottom: 20px; }
         .hidden { display: none !important; }
         
         .timer-bar { height: 6px; background: #e2e8f0; border-radius: 3px; overflow: hidden; margin-bottom: 20px; }
         #timerFill { height: 100%; background: var(--danger); width: 100%; transition: linear 1s; }
 
-        input, select { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #cbd5e1; border-radius: 8px; }
+        input, select { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #cbd5e1; border-radius: 8px; box-sizing: border-box; }
         button { width: 100%; padding: 14px; border-radius: 8px; cursor: pointer; font-weight: bold; border: none; margin-top: 10px; }
         .btn-start { background: var(--primary); color: white; }
         
-        .opt-btn { background: #f8fafc; border: 1px solid #e2e8f0; text-align: left; margin-bottom: 8px; }
+        .opt-btn { background: #f8fafc; border: 1px solid #e2e8f0; text-align: left; margin-bottom: 8px; width: 100%; }
         .opt-btn.correct { background: #dcfce7; border-color: var(--success); color: #166534; }
         .opt-btn.wrong { background: #fee2e2; border-color: var(--danger); color: #991b1b; }
+
+        /* THE ADMIN BUTTON CSS */
+        .admin-footer { position: fixed; bottom: 0; left: 0; width: 100%; background: white; padding: 10px; text-align: center; border-top: 1px solid #e2e8f0; }
+        .btn-admin { background: #64748b; color: white; padding: 8px 20px; text-decoration: none; border-radius: 5px; font-size: 14px; }
     </style>
 </head>
 <body>
@@ -28,8 +32,8 @@
     <div class="container">
         <div id="setup" class="card">
             <h1>Start Exam</h1>
-            <input type="text" id="sName" placeholder="Full Name">
-            <select id="sQuiz"><option>Loading...</option></select>
+            <input type="text" id="sName" placeholder="Enter Your Full Name">
+            <select id="sQuiz"><option>Connecting to Cloud...</option></select>
             <button onclick="start()" class="btn-start">Begin Test</button>
         </div>
 
@@ -45,10 +49,14 @@
         <div id="finish" class="hidden">
             <div class="card" style="text-align:center">
                 <h1>Result: <span id="fScore">0%</span></h1>
-                <button onclick="location.reload()" style="background:#64748b; color:white">Exit</button>
+                <button onclick="location.reload()" style="background:#64748b; color:white">Take Another Quiz</button>
             </div>
             <div id="reviewList"></div>
         </div>
+    </div>
+
+    <div class="admin-footer">
+        <a href="admin.html" class="btn-admin">Go to Admin Dashboard</a>
     </div>
 
 <script type="module">
@@ -70,15 +78,25 @@
     let quizzes = [], activeQuiz = null, curIdx = 0, score = 0, detailed = [], timer = null;
 
     window.onload = async () => {
-        const snap = await getDocs(collection(db, "quizzes"));
-        const sel = document.getElementById('sQuiz'); sel.innerHTML = "";
-        snap.forEach(d => { quizzes.push({id: d.id, ...d.data()}); sel.innerHTML += `<option value="${d.id}">${d.data().bankName}</option>`; });
+        try {
+            const snap = await getDocs(collection(db, "quizzes"));
+            const sel = document.getElementById('sQuiz'); 
+            sel.innerHTML = '<option value="">-- Select a Quiz Bank --</option>';
+            snap.forEach(d => { 
+                quizzes.push({id: d.id, ...d.data()}); 
+                sel.innerHTML += `<option value="${d.id}">${d.data().bankName}</option>`; 
+            });
+        } catch(e) {
+            document.getElementById('sQuiz').innerHTML = '<option>Error loading quizzes</option>';
+        }
     };
 
     window.start = () => {
         const name = document.getElementById('sName').value;
-        activeQuiz = quizzes.find(q => q.id === document.getElementById('sQuiz').value);
-        if(!name || !activeQuiz) return alert("Fill details!");
+        const quizId = document.getElementById('sQuiz').value;
+        activeQuiz = quizzes.find(q => q.id === quizId);
+        if(!name || !activeQuiz) return alert("Please enter your name and select a quiz bank!");
+        
         document.getElementById('setup').classList.add('hidden');
         document.getElementById('quiz').classList.remove('hidden');
         showQ();
@@ -86,7 +104,7 @@
 
     function showQ() {
         const q = activeQuiz.questions[curIdx];
-        document.getElementById('qText').innerText = q.question;
+        document.getElementById('qText').innerText = (curIdx + 1) + ". " + q.question;
         const cont = document.getElementById('opts'); cont.innerHTML = "";
         q.options.forEach(o => {
             const b = document.createElement('button'); b.className = 'opt-btn'; b.innerText = o;
@@ -113,16 +131,34 @@
         const picked = sel ? sel.trim().charAt(0).toUpperCase() : "TIMEOUT";
         const isCorrect = picked === q.correct;
         
-        if(isCorrect) { score++; if(btn) btn.classList.add('correct'); }
-        else if(btn) btn.classList.add('wrong');
+        // Disable buttons
+        const allBtns = document.querySelectorAll('.opt-btn');
+        allBtns.forEach(b => b.disabled = true);
 
-        detailed.push({ question: q.question, options: q.options, selected: picked, correct: q.correct, isCorrect });
+        if(isCorrect) { 
+            score++; 
+            if(btn) btn.classList.add('correct'); 
+        } else {
+            if(btn) btn.classList.add('wrong');
+            // Show correct answer
+            allBtns.forEach(b => {
+                if(b.innerText.trim().charAt(0).toUpperCase() === q.correct) b.classList.add('correct');
+            });
+        }
+
+        detailed.push({ 
+            question: q.question, 
+            options: q.options, 
+            selected: picked, 
+            correct: q.correct, 
+            isCorrect 
+        });
 
         setTimeout(() => {
             curIdx++;
             if(curIdx < activeQuiz.questions.length) showQ();
             else finish();
-        }, 1000);
+        }, 1500);
     }
 
     async function finish() {
@@ -132,11 +168,14 @@
         document.getElementById('fScore').innerText = final + "%";
 
         const rev = document.getElementById('reviewList');
-        rev.innerHTML = detailed.map(a => `
-            <div class="card" style="background:${a.isCorrect ? '#dcfce7':'#fee2e2'}">
-                <b>${a.question}</b><br>
-                <small>${a.options.join('<br>')}</small><hr>
-                Picked: ${a.selected} | Correct: ${a.correct}
+        rev.innerHTML = '<h2 style="margin-top:20px">Answer Review</h2>' + detailed.map(a => `
+            <div class="card" style="background:${a.isCorrect ? '#dcfce7':'#fee2e2'}; border-left: 5px solid ${a.isCorrect ? '#22c55e' : '#ef4444'}">
+                <b style="display:block; margin-bottom:10px;">${a.question}</b>
+                <div style="font-size:0.85em; margin-bottom:10px;">
+                    ${a.options ? a.options.join('<br>') : ''}
+                </div>
+                <hr style="opacity:0.1">
+                <b>Your Pick: ${a.selected}</b> | <b>Correct: ${a.correct}</b> ${a.isCorrect ? '✅' : '❌'}
             </div>
         `).join('');
 
