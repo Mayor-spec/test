@@ -129,7 +129,10 @@
         all.forEach(b => b.disabled = true);
         if(isCorrect) { score++; if(btn) btn.classList.add('correct'); }
         else { if(btn) btn.classList.add('wrong'); all.forEach(b => { if(b.innerText.trim().charAt(0).toUpperCase() === q.correct) b.classList.add('correct'); }); }
+        
+        // CRITICAL: Save full options list to detailed for later review
         detailed.push({ question: q.question, options: q.options, selected: picked, correct: q.correct, explanation: q.explanation, isCorrect });
+        
         setTimeout(() => { curIdx++; if(curIdx < activeQuiz.questions.length) renderQ(); else finishExam(); }, 1500);
     }
 
@@ -141,7 +144,7 @@
         document.getElementById('reviewList').innerHTML = '<h2 style="margin-top:20px">Answer Review</h2>' + detailed.map(a => `
             <div class="card" style="background:${a.isCorrect ? '#dcfce7':'#fee2e2'}; border-left:5px solid ${a.isCorrect ? '#22c55e':'#ef4444'}">
                 <b>${a.question}</b><br>
-                <div style="font-size:0.85em; margin:10px 0;">${a.options.join('<br>')}</div>
+                <div style="font-size:0.85em; margin:10px 0;">${a.options ? a.options.join('<br>') : 'Options not saved.'}</div>
                 <hr style="opacity:0.1">
                 <b>Picked: ${a.selected} | Correct: ${a.correct}</b><br>
                 <small><i>💡 ${a.explanation}</i></small>
