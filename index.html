@@ -15,7 +15,7 @@
         input, select { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #cbd5e1; border-radius: 8px; box-sizing: border-box; }
         button { width: 100%; padding: 14px; border-radius: 8px; cursor: pointer; font-weight: bold; border: none; margin-top: 10px; }
         .btn-main { background: var(--primary); color: white; }
-        .opt-btn { background: #f8fafc; border: 1px solid #e2e8f0; text-align: left; margin-bottom: 8px; width: 100%; }
+        .opt-btn { background: #f8fafc; border: 1px solid #e2e8f0; text-align: left; margin-bottom: 8px; width: 100%; transition: 0.2s; }
         .opt-btn.correct { background: #dcfce7 !important; border-color: var(--success) !important; color: #166534; }
         .opt-btn.wrong { background: #fee2e2 !important; border-color: var(--danger) !important; color: #991b1b; }
         .admin-nav { position: fixed; bottom: 0; left: 0; width: 100%; background: white; padding: 15px; text-align: center; border-top: 1px solid #e2e8f0; z-index: 100; }
@@ -23,31 +23,24 @@
     </style>
 </head>
 <body>
-
     <div class="container">
         <div id="setup" class="card">
-            <h1>Portal Login</h1>
-            <input type="text" id="sName" placeholder="Student Full Name">
-            <select id="sQuiz"><option>Fetching exams...</option></select>
-            <button onclick="startExam()" class="btn-main">Start Now</button>
+            <h1>Student Portal</h1>
+            <input type="text" id="sName" placeholder="Full Name">
+            <select id="sQuiz"><option>Loading exams...</option></select>
+            <button onclick="startExam()" class="btn-main">Start Examination</button>
         </div>
-
         <div id="quiz" class="hidden">
             <div id="tLabel" style="text-align:right; font-weight:bold; color:var(--danger)">0s</div>
             <div class="timer-wrap"><div id="timerBar"></div></div>
             <div class="card"><h2 id="qText">Question</h2><div id="opts"></div></div>
         </div>
-
         <div id="finish" class="hidden">
-            <div class="card" style="text-align:center">
-                <h1>Final Score: <span id="fScore">0%</span></h1>
-                <button onclick="location.reload()" style="background:#64748b; color:white">Take Another</button>
-            </div>
+            <div class="card" style="text-align:center"><h1>Score: <span id="fScore">0%</span></h1><button onclick="location.reload()" style="background:#64748b; color:white">Take Another Test</button></div>
             <div id="reviewList"></div>
         </div>
     </div>
-
-    <div class="admin-nav"><a href="admin.html" class="btn-admin">⚙️ Admin Control</a></div>
+    <div class="admin-nav"><a href="admin.html" class="btn-admin">⚙️ Admin Dashboard</a></div>
 
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
@@ -85,19 +78,16 @@
     window.startExam = () => {
         const name = document.getElementById('sName').value;
         const selected = quizzes.find(q => q.id === document.getElementById('sQuiz').value);
-        if(!name || !selected) return alert("Enter name and select exam!");
+        if(!name || !selected) return alert("Fill name and select exam!");
 
-        // Deep clone and scatter
         activeQuiz = JSON.parse(JSON.stringify(selected));
         activeQuiz.questions = shuffle(activeQuiz.questions);
 
         activeQuiz.questions.forEach(q => {
             const correctLine = q.options.find(o => o.trim().toUpperCase().startsWith(q.correct));
             const correctText = correctLine.replace(/^[A-D][\.\)\s-]/i, "").trim();
-            
             let cleanOptions = q.options.map(o => o.replace(/^[A-D][\.\)\s-]/i, "").trim());
             cleanOptions = shuffle(cleanOptions);
-
             q.options = cleanOptions.map((text, i) => `${String.fromCharCode(65 + i)}) ${text}`);
             q.correct = String.fromCharCode(65 + cleanOptions.indexOf(correctText));
         });
@@ -137,20 +127,10 @@
         const isCorrect = picked === q.correct;
         const all = document.querySelectorAll('.opt-btn');
         all.forEach(b => b.disabled = true);
-
         if(isCorrect) { score++; if(btn) btn.classList.add('correct'); }
-        else {
-            if(btn) btn.classList.add('wrong');
-            all.forEach(b => { if(b.innerText.trim().charAt(0).toUpperCase() === q.correct) b.classList.add('correct'); });
-        }
-
+        else { if(btn) btn.classList.add('wrong'); all.forEach(b => { if(b.innerText.trim().charAt(0).toUpperCase() === q.correct) b.classList.add('correct'); }); }
         detailed.push({ question: q.question, options: q.options, selected: picked, correct: q.correct, explanation: q.explanation, isCorrect });
-
-        setTimeout(() => {
-            curIdx++;
-            if(curIdx < activeQuiz.questions.length) renderQ();
-            else finishExam();
-        }, 1500);
+        setTimeout(() => { curIdx++; if(curIdx < activeQuiz.questions.length) renderQ(); else finishExam(); }, 1500);
     }
 
     async function finishExam() {
@@ -158,24 +138,16 @@
         document.getElementById('finish').classList.remove('hidden');
         const final = Math.round((score/activeQuiz.questions.length)*100);
         document.getElementById('fScore').innerText = final + "%";
-
-        document.getElementById('reviewList').innerHTML = '<h2 style="margin-top:20px">Detailed Review</h2>' + detailed.map(a => `
+        document.getElementById('reviewList').innerHTML = '<h2 style="margin-top:20px">Answer Review</h2>' + detailed.map(a => `
             <div class="card" style="background:${a.isCorrect ? '#dcfce7':'#fee2e2'}; border-left:5px solid ${a.isCorrect ? '#22c55e':'#ef4444'}">
                 <b>${a.question}</b><br>
                 <div style="font-size:0.85em; margin:10px 0;">${a.options.join('<br>')}</div>
                 <hr style="opacity:0.1">
-                <b>Your Pick: ${a.selected} | Correct: ${a.correct}</b><br>
-                <small><i>💡 Explanation: ${a.explanation}</i></small>
+                <b>Picked: ${a.selected} | Correct: ${a.correct}</b><br>
+                <small><i>💡 ${a.explanation}</i></small>
             </div>
         `).join('');
-
-        await addDoc(collection(db, "results"), {
-            studentName: document.getElementById('sName').value,
-            quizName: activeQuiz.bankName,
-            score: final,
-            detailedAnswers: detailed,
-            date: new Date().toLocaleString()
-        });
+        await addDoc(collection(db, "results"), { studentName: document.getElementById('sName').value, quizName: activeQuiz.bankName, score: final, detailedAnswers: detailed, date: new Date().toLocaleString() });
     }
 </script>
 </body>
