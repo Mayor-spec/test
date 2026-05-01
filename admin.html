@@ -3,30 +3,24 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin Panel - AI MCQ Pro</title>
+    <title>Admin Panel - Fixed</title>
     <style>
         :root { --primary: #4f46e5; --bg: #f8fafc; --text: #1e293b; --success: #10b981; --danger: #ef4444; }
         body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 20px; }
-        .container { max-width: 1000px; margin: 0 auto; }
+        .container { max-width: 900px; margin: 0 auto; }
         .hidden { display: none !important; }
         .card { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); margin-bottom: 20px; }
-        
         input, textarea, select { width: 100%; padding: 12px; margin-top: 10px; border: 1px solid #e2e8f0; border-radius: 6px; box-sizing: border-box; }
-        button { border: none; padding: 12px 20px; border-radius: 6px; cursor: pointer; font-weight: bold; margin-top: 10px; transition: 0.2s; }
+        button { border: none; padding: 12px 20px; border-radius: 6px; cursor: pointer; font-weight: bold; margin-top: 10px; }
         .btn-primary { background: var(--primary); color: white; width: 100%; }
         .btn-danger { background: var(--danger); color: white; }
-        .btn-success { background: var(--success); color: white; width: 100%; }
-
         .tabs { display: flex; gap: 15px; margin-bottom: 20px; border-bottom: 2px solid #e2e8f0; }
-        .tab-btn { background: none; border: none; padding: 10px; cursor: pointer; color: #64748b; }
+        .tab-btn { background: none; border: none; padding: 10px; cursor: pointer; color: #64748b; font-weight: bold; }
         .tab-btn.active { color: var(--primary); border-bottom: 2px solid var(--primary); }
-
         .modal { position: fixed; inset: 0; background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center; z-index: 9999; }
         .modal-content { background: white; padding: 30px; border-radius: 15px; width: 90%; max-width: 600px; max-height: 85vh; overflow-y: auto; }
-
         table { width: 100%; border-collapse: collapse; }
         th, td { text-align: left; padding: 12px; border-bottom: 1px solid #f1f5f9; }
-        .preview-item { border-bottom: 1px solid #eee; padding: 15px 0; }
     </style>
 </head>
 <body>
@@ -41,50 +35,46 @@
 
         <div id="dashboard" class="hidden">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                <h1>Admin Panel</h1>
+                <h1>Admin Control</h1>
                 <button id="logoutBtn" class="btn-danger" style="margin-top:0">Logout</button>
             </div>
 
             <div class="tabs">
-                <button class="tab-btn active" onclick="switchTab('create')">Create Quiz</button>
-                <button class="tab-btn" onclick="switchTab('manage')">Manage Banks</button>
-                <button class="tab-btn" onclick="switchTab('results')">Student Results</button>
+                <button class="tab-btn active" id="tab1" onclick="switchTab('create')">Create Quiz</button>
+                <button class="tab-btn" id="tab2" onclick="switchTab('manage')">Manage Banks</button>
+                <button class="tab-btn" id="tab3" onclick="switchTab('results')">View Results</button>
             </div>
 
             <div id="createSec">
                 <div class="card">
-                    <h3>New Quiz Bank</h3>
+                    <h3>Quiz Setup</h3>
                     <input type="text" id="bankName" placeholder="Bank Name (e.g. CHM 102)">
-                    <input type="number" id="qTimer" placeholder="Seconds per question (e.g. 30)">
+                    <input type="number" id="qTimer" placeholder="Seconds per question">
                     <textarea id="aiText" placeholder="Paste AI Questions here..." style="height: 150px;"></textarea>
                     <button onclick="parseAIContent()" class="btn-primary">1. Parse & Preview</button>
                 </div>
                 <div id="previewArea" class="card hidden">
-                    <h3>Review Questions</h3>
+                    <h3>Parsed Preview</h3>
                     <div id="previewList"></div>
-                    <button id="saveBtn" class="btn-success">2. Save Bank to Cloud</button>
+                    <button id="saveBtn" style="background:#10b981; color:white; width:100%">2. Save to Cloud</button>
                 </div>
             </div>
 
             <div id="manageSec" class="hidden">
-                <div class="card">
-                    <table><thead><tr><th>Bank Name</th><th>Timer</th><th>Action</th></tr></thead><tbody id="bankTable"></tbody></table>
-                </div>
+                <div class="card"><table><thead><tr><th>Bank Name</th><th>Action</th></tr></thead><tbody id="bankTable"></tbody></table></div>
             </div>
 
             <div id="resultsSec" class="hidden">
-                <div class="card">
-                    <table><thead><tr><th>Student</th><th>Quiz</th><th>Score</th><th>Action</th></tr></thead><tbody id="resTable"></tbody></table>
-                </div>
+                <div class="card"><table><thead><tr><th>Student</th><th>Quiz</th><th>Score</th><th>Action</th></tr></thead><tbody id="resTable"></tbody></table></div>
             </div>
         </div>
     </div>
 
     <div id="resModal" class="modal hidden">
         <div class="modal-content">
-            <h2 id="mTitle">Attempt Detail</h2>
+            <h2 id="mTitle">Detail</h2>
             <div id="mList"></div>
-            <button onclick="closeModal()" class="btn-primary">Close Details</button>
+            <button onclick="closeModal()" class="btn-primary">Close</button>
         </div>
     </div>
 
@@ -108,7 +98,6 @@
 
     let tempQuestions = [];
 
-    // --- Authentication ---
     document.getElementById('loginBtn').onclick = () => {
         signInWithEmailAndPassword(auth, document.getElementById('email').value, document.getElementById('password').value).catch(e => alert(e.message));
     };
@@ -118,68 +107,83 @@
     });
     document.getElementById('logoutBtn').onclick = () => signOut(auth);
 
-    // --- Navigation ---
     window.switchTab = (t) => {
         document.getElementById('createSec').classList.toggle('hidden', t !== 'create');
         document.getElementById('manageSec').classList.toggle('hidden', t !== 'manage');
         document.getElementById('resultsSec').classList.toggle('hidden', t !== 'results');
-        document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.toggle('active', btn.innerText.toLowerCase().includes(t)));
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.id.includes(t==='create'?'1':t==='manage'?'2':'3')));
         if(t === 'manage') loadBanks();
         if(t === 'results') loadResults();
     };
 
-    // --- Robust Parser ---
     window.parseAIContent = () => {
         const text = document.getElementById('aiText').value;
+        if (!text.trim()) return alert("Paste text first!");
         tempQuestions = [];
+
+        // Split by question numbers at the start of a line
         const blocks = text.split(/\n\s*(?=\d+[\.\)\s])/);
         
-        blocks.forEach(b => {
-            const lines = b.split('\n').filter(l => l.trim());
-            if(lines.length < 3) return;
-            
-            const q = lines[0].replace(/^\d+[\.\)\s]*/, "");
-            const opts = lines.filter(l => l.trim().match(/^[A-D][\.\)\s-]/i));
-            const ansLine = lines.find(l => l.toLowerCase().match(/correct|ans:|answer/));
-            const expLine = lines.find(l => l.toLowerCase().includes("explanation"));
-            
-            const cor = ansLine ? ansLine.match(/[A-D]/i)?.[0].toUpperCase() : "A";
-            const exp = expLine ? expLine.split(/explanation:/i)[1].trim() : "No explanation provided.";
+        blocks.forEach(block => {
+            const lines = block.split('\n').map(l => l.trim()).filter(l => l !== "");
+            if (lines.length < 3) return;
 
-            tempQuestions.push({ question: q, options: opts, correct: cor, explanation: exp });
+            const question = lines[0].replace(/^\d+[\.\)\s]*/, "");
+            
+            // Flexible option finder: Looks for A, B, C, or D at start of line
+            const options = lines.filter(l => l.match(/^[A-D][\.\)\s-]/i));
+            
+            // Improved Answer finder: Specifically looks for text AFTER "Correct Answer"
+            const ansLine = lines.find(l => l.toLowerCase().includes("correct answer"));
+            let correct = "A";
+            if (ansLine) {
+                const parts = ansLine.split(":");
+                const letterMatch = (parts[1] || parts[0]).match(/[A-D]/i);
+                if (letterMatch) correct = letterMatch[0].toUpperCase();
+            }
+
+            const expLine = lines.find(l => l.toLowerCase().includes("explanation"));
+            const explanation = expLine ? expLine.split(/explanation:/i).pop().trim() : "No explanation provided.";
+
+            if (question && options.length > 0) {
+                tempQuestions.push({ question, options, correct, explanation });
+            }
         });
 
-        document.getElementById('previewList').innerHTML = tempQuestions.map(q => `
-            <div class="preview-item">
-                <b>${q.question}</b><br>
-                <small style="color:green">Correct: ${q.correct}</small> | <i>${q.explanation}</i>
+        const list = document.getElementById('previewList');
+        list.innerHTML = tempQuestions.map((q, i) => `
+            <div class="preview-item" style="border-bottom:1px solid #eee; padding:15px 0;">
+                <b>${i+1}. ${q.question}</b><br>
+                <div style="font-size:0.85em; color:#64748b; margin:8px 0;">${q.options.join(' | ')}</div>
+                <span style="color:green; font-weight:bold;">Correct: ${q.correct}</span> | <small><i>${q.explanation}</i></small>
             </div>
         `).join('');
         document.getElementById('previewArea').classList.remove('hidden');
     };
 
     document.getElementById('saveBtn').onclick = async () => {
-        const name = document.getElementById('bankName').value;
-        if(!name) return alert("Please name your quiz bank!");
-        await addDoc(collection(db, "quizzes"), {
-            bankName: name,
-            timePerQuestion: document.getElementById('qTimer').value || 30,
-            questions: tempQuestions,
-            date: new Date()
-        });
-        alert("Saved Successfully!"); location.reload();
+        try {
+            await addDoc(collection(db, "quizzes"), {
+                bankName: document.getElementById('bankName').value,
+                timePerQuestion: document.getElementById('qTimer').value || 30,
+                questions: tempQuestions,
+                date: new Date()
+            });
+            alert("Success! Quiz Bank Saved."); location.reload();
+        } catch(e) {
+            alert("Error: " + e.message);
+        }
     };
 
-    // --- Data Management ---
     async function loadBanks() {
         const snap = await getDocs(collection(db, "quizzes"));
         const body = document.getElementById('bankTable');
         body.innerHTML = "";
         snap.forEach(d => {
-            body.innerHTML += `<tr><td>${d.data().bankName}</td><td>${d.data().timePerQuestion}s</td><td><button onclick="delBank('${d.id}')" class="btn-danger">Delete</button></td></tr>`;
+            body.innerHTML += `<tr><td>${d.data().bankName}</td><td><button onclick="delBank('${d.id}')" class="btn-danger">Delete</button></td></tr>`;
         });
     }
-    window.delBank = async (id) => { if(confirm("Delete Bank?")) { await deleteDoc(doc(db, "quizzes", id)); loadBanks(); } };
+    window.delBank = async (id) => { if(confirm("Delete?")) { await deleteDoc(doc(db, "quizzes", id)); loadBanks(); }};
 
     async function loadResults() {
         const snap = await getDocs(query(collection(db, "results"), orderBy("date", "desc")));
@@ -187,21 +191,21 @@
         body.innerHTML = "";
         snap.forEach(d => {
             const r = d.data();
-            body.innerHTML += `<tr><td>${r.studentName}</td><td>${r.quizName}</td><td>${r.score}%</td><td><button onclick="viewDetail('${d.id}')" class="btn-primary">View Breakdown</button></td></tr>`;
+            body.innerHTML += `<tr><td>${r.studentName}</td><td>${r.quizName}</td><td>${r.score}%</td><td><button onclick="viewDetail('${d.id}')" class="btn-primary">View</button></td></tr>`;
         });
     }
 
     window.viewDetail = async (id) => {
         const snap = await getDocs(collection(db, "results"));
         const r = snap.docs.find(d => d.id === id).data();
-        document.getElementById('mTitle').innerText = r.studentName + "'s Results";
+        document.getElementById('mTitle').innerText = r.studentName;
         document.getElementById('mList').innerHTML = r.detailedAnswers.map(a => `
             <div style="margin-bottom:15px; padding:15px; border-radius:10px; background:${a.isCorrect ? '#dcfce7':'#fee2e2'}">
                 <b>${a.question}</b><br>
-                <div style="font-size:0.8em; margin:5px 0;">${a.options.join('<br>')}</div>
+                <div style="font-size:0.85em; margin:8px 0;">${a.options.join('<br>')}</div>
                 <hr style="opacity:0.1">
                 <b>Picked: ${a.selected} | Correct: ${a.correct}</b><br>
-                <small><i>💡 ${a.explanation}</i></small>
+                <small><i> ${a.explanation}</i></small>
             </div>
         `).join('');
         document.getElementById('resModal').classList.remove('hidden');
