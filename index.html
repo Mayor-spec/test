@@ -3,60 +3,51 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Student Portal - Live Exam</title>
+    <title>Student Portal - Live Quiz</title>
     <style>
         :root { --primary: #4f46e5; --bg: #f1f5f9; --text: #1e293b; --success: #22c55e; --danger: #ef4444; }
         body { font-family: 'Inter', sans-serif; background: var(--bg); margin: 0; padding: 20px; }
         .container { max-width: 600px; margin: 0 auto; padding-bottom: 80px; }
         .card { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); margin-bottom: 20px; }
         .hidden { display: none !important; }
-        
         .timer-wrap { height: 8px; background: #e2e8f0; border-radius: 4px; overflow: hidden; margin-bottom: 20px; }
-        #timerFill { height: 100%; background: var(--danger); width: 100%; transition: linear 1s; }
-
+        #timerBar { height: 100%; background: var(--danger); width: 100%; transition: linear 1s; }
         input, select { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #cbd5e1; border-radius: 8px; box-sizing: border-box; }
         button { width: 100%; padding: 14px; border-radius: 8px; cursor: pointer; font-weight: bold; border: none; margin-top: 10px; }
         .btn-main { background: var(--primary); color: white; }
-        
         .opt-btn { background: #f8fafc; border: 1px solid #e2e8f0; text-align: left; margin-bottom: 8px; width: 100%; }
         .opt-btn.correct { background: #dcfce7 !important; border-color: var(--success) !important; color: #166534; }
         .opt-btn.wrong { background: #fee2e2 !important; border-color: var(--danger) !important; color: #991b1b; }
-
         .admin-nav { position: fixed; bottom: 0; left: 0; width: 100%; background: white; padding: 15px; text-align: center; border-top: 1px solid #e2e8f0; z-index: 100; }
-        .btn-admin { background: #64748b; color: white; padding: 10px 25px; text-decoration: none; border-radius: 6px; font-weight: bold; font-size: 14px; }
+        .btn-admin { background: #64748b; color: white; padding: 10px 25px; text-decoration: none; border-radius: 6px; font-weight: bold; }
     </style>
 </head>
 <body>
 
     <div class="container">
         <div id="setup" class="card">
-            <h1>Student Portal</h1>
-            <input type="text" id="sName" placeholder="Enter Full Name">
+            <h1>Portal Login</h1>
+            <input type="text" id="sName" placeholder="Student Full Name">
             <select id="sQuiz"><option>Fetching exams...</option></select>
-            <button onclick="startExam()" class="btn-main">Start Examination</button>
+            <button onclick="startExam()" class="btn-main">Start Now</button>
         </div>
 
         <div id="quiz" class="hidden">
             <div id="tLabel" style="text-align:right; font-weight:bold; color:var(--danger)">0s</div>
-            <div class="timer-wrap"><div id="timerFill"></div></div>
-            <div class="card">
-                <h2 id="qText">Question</h2>
-                <div id="opts"></div>
-            </div>
+            <div class="timer-wrap"><div id="timerBar"></div></div>
+            <div class="card"><h2 id="qText">Question</h2><div id="opts"></div></div>
         </div>
 
         <div id="finish" class="hidden">
             <div class="card" style="text-align:center">
-                <h1>Score: <span id="fScore">0%</span></h1>
-                <button onclick="location.reload()" style="background:#64748b; color:white">Finish</button>
+                <h1>Final Score: <span id="fScore">0%</span></h1>
+                <button onclick="location.reload()" style="background:#64748b; color:white">Take Another</button>
             </div>
             <div id="reviewList"></div>
         </div>
     </div>
 
-    <div class="admin-nav">
-        <a href="admin.html" class="btn-admin">⚙️ Admin Dashboard</a>
-    </div>
+    <div class="admin-nav"><a href="admin.html" class="btn-admin">⚙️ Admin Control</a></div>
 
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
@@ -76,7 +67,6 @@
 
     let quizzes = [], activeQuiz = null, curIdx = 0, score = 0, detailed = [], timer = null;
 
-    // --- Helper: Shuffle Algorithm ---
     function shuffle(array) {
         for (let i = array.length - 1; i > 0; i--) {
             const j = Math.floor(Math.random() * (i + 1));
@@ -95,18 +85,18 @@
     window.startExam = () => {
         const name = document.getElementById('sName').value;
         const selected = quizzes.find(q => q.id === document.getElementById('sQuiz').value);
-        if(!name || !selected) return alert("Fill details!");
+        if(!name || !selected) return alert("Enter name and select exam!");
 
-        // --- SCATTER LOGIC ---
-        activeQuiz = JSON.parse(JSON.stringify(selected)); // Clone
-        activeQuiz.questions = shuffle(activeQuiz.questions); // Shuffle Questions
+        // Deep clone and scatter
+        activeQuiz = JSON.parse(JSON.stringify(selected));
+        activeQuiz.questions = shuffle(activeQuiz.questions);
 
         activeQuiz.questions.forEach(q => {
-            const correctText = q.options.find(o => o.trim().toUpperCase().startsWith(q.correct))
-                                 .replace(/^[A-D][\.\)\s]*/i, "").trim();
+            const correctLine = q.options.find(o => o.trim().toUpperCase().startsWith(q.correct));
+            const correctText = correctLine.replace(/^[A-D][\.\)\s-]/i, "").trim();
             
-            let cleanOptions = q.options.map(o => o.replace(/^[A-D][\.\)\s]*/i, "").trim());
-            cleanOptions = shuffle(cleanOptions); // Shuffle Options
+            let cleanOptions = q.options.map(o => o.replace(/^[A-D][\.\)\s-]/i, "").trim());
+            cleanOptions = shuffle(cleanOptions);
 
             q.options = cleanOptions.map((text, i) => `${String.fromCharCode(65 + i)}) ${text}`);
             q.correct = String.fromCharCode(65 + cleanOptions.indexOf(correctText));
@@ -135,7 +125,7 @@
         timer = setInterval(() => {
             time--;
             document.getElementById('tLabel').innerText = time + "s";
-            document.getElementById('timerFill').style.width = (time/total)*100 + "%";
+            document.getElementById('timerBar').style.width = (time/total)*100 + "%";
             if(time <= 0) { clearInterval(timer); handleAnswer(null, null); }
         }, 1000);
     }
@@ -145,7 +135,6 @@
         const q = activeQuiz.questions[curIdx];
         const picked = sel ? sel.trim().charAt(0).toUpperCase() : "TIMEOUT";
         const isCorrect = picked === q.correct;
-        
         const all = document.querySelectorAll('.opt-btn');
         all.forEach(b => b.disabled = true);
 
@@ -170,12 +159,12 @@
         const final = Math.round((score/activeQuiz.questions.length)*100);
         document.getElementById('fScore').innerText = final + "%";
 
-        document.getElementById('reviewList').innerHTML = '<h2 style="margin-top:20px">Answer Review</h2>' + detailed.map(a => `
+        document.getElementById('reviewList').innerHTML = '<h2 style="margin-top:20px">Detailed Review</h2>' + detailed.map(a => `
             <div class="card" style="background:${a.isCorrect ? '#dcfce7':'#fee2e2'}; border-left:5px solid ${a.isCorrect ? '#22c55e':'#ef4444'}">
                 <b>${a.question}</b><br>
                 <div style="font-size:0.85em; margin:10px 0;">${a.options.join('<br>')}</div>
                 <hr style="opacity:0.1">
-                <b>Picked: ${a.selected} | Correct: ${a.correct}</b><br>
+                <b>Your Pick: ${a.selected} | Correct: ${a.correct}</b><br>
                 <small><i>💡 Explanation: ${a.explanation}</i></small>
             </div>
         `).join('');
