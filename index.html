@@ -3,47 +3,61 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Student Portal - Live Exam</title>
+    <title>Student Portal - Live Quiz</title>
     <style>
         :root { --primary: #4f46e5; --bg: #f1f5f9; --text: #1e293b; --success: #22c55e; --danger: #ef4444; }
-        body { font-family: 'Inter', sans-serif; background: var(--bg); margin: 0; padding: 20px; }
+        body { font-family: 'Inter', sans-serif; background: var(--bg); margin: 0; padding: 20px; color: var(--text); }
         .container { max-width: 600px; margin: 0 auto; padding-bottom: 80px; }
         .card { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); margin-bottom: 20px; }
         .hidden { display: none !important; }
+        
         .timer-wrap { height: 8px; background: #e2e8f0; border-radius: 4px; overflow: hidden; margin-bottom: 20px; }
         #timerBar { height: 100%; background: var(--danger); width: 100%; transition: linear 1s; }
-        input, select { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #cbd5e1; border-radius: 8px; box-sizing: border-box; }
-        button { width: 100%; padding: 14px; border-radius: 8px; cursor: pointer; font-weight: bold; border: none; margin-top: 10px; }
+
+        input, select { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #cbd5e1; border-radius: 8px; box-sizing: border-box; font-size: 16px; }
+        button { width: 100%; padding: 14px; border-radius: 8px; cursor: pointer; font-weight: bold; border: none; margin-top: 10px; font-size: 16px; }
         .btn-main { background: var(--primary); color: white; }
+        .btn-main:disabled { background: #94a3b8; cursor: not-allowed; }
+        
         .opt-btn { background: #f8fafc; border: 1px solid #e2e8f0; text-align: left; margin-bottom: 8px; width: 100%; transition: 0.2s; }
         .opt-btn.correct { background: #dcfce7 !important; border-color: var(--success) !important; color: #166534; }
         .opt-btn.wrong { background: #fee2e2 !important; border-color: var(--danger) !important; color: #991b1b; }
+
         .admin-nav { position: fixed; bottom: 0; left: 0; width: 100%; background: white; padding: 15px; text-align: center; border-top: 1px solid #e2e8f0; z-index: 100; }
         .btn-admin { background: #64748b; color: white; padding: 10px 25px; text-decoration: none; border-radius: 6px; font-weight: bold; }
     </style>
 </head>
 <body>
+
     <div class="container">
         <div id="setup" class="card">
-            <h1>Student Login</h1>
+            <h1>Portal Login</h1>
             <input type="text" id="sName" placeholder="Enter Your Full Name">
-            <select id="sQuiz"><option>Fetching Exams...</option></select>
-            <button onclick="startExam()" class="btn-main">Start Examination</button>
+            <select id="sQuiz"><option>Connecting to Cloud...</option></select>
+            <button onclick="startExam()" id="startBtn" class="btn-main" disabled>Waiting for Data...</button>
         </div>
 
         <div id="quiz" class="hidden">
             <div id="tLabel" style="text-align:right; font-weight:bold; color:var(--danger)">0s</div>
             <div class="timer-wrap"><div id="timerBar"></div></div>
-            <div class="card"><h2 id="qText">Question</h2><div id="opts"></div></div>
+            <div class="card">
+                <h2 id="qText">Question</h2>
+                <div id="opts"></div>
+            </div>
         </div>
 
         <div id="finish" class="hidden">
-            <div class="card" style="text-align:center"><h1>Score: <span id="fScore">0%</span></h1><button onclick="location.reload()" style="background:#64748b; color:white">Take Another Test</button></div>
-            <div id="reviewList"></div>
+            <div class="card" style="text-align:center">
+                <h1>Final Score: <span id="fScore">0%</span></h1>
+                <button onclick="location.reload()" style="background:#64748b; color:white">Return to Login</button>
+            </div>
+            <div id="reviewArea"></div>
         </div>
     </div>
 
-    <div class="admin-nav"><a href="admin.html" class="btn-admin">⚙️ Admin Dashboard Access</a></div>
+    <div class="admin-nav">
+        <a href="admin.html" class="btn-admin">⚙️ Admin Dashboard Access</a>
+    </div>
 
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
@@ -63,7 +77,7 @@
 
     let quizzes = [], activeQuiz = null, curIdx = 0, score = 0, detailed = [], timer = null;
 
-    // SCATTER ALGORITHM: Fisher-Yates Shuffle
+    // Helper: Fisher-Yates Shuffle
     function shuffle(array) {
         for (let i = array.length - 1; i > 0; i--) {
             const j = Math.floor(Math.random() * (i + 1));
@@ -72,29 +86,57 @@
         return array;
     }
 
+    // --- FETCH DATA ON LOAD ---
     window.onload = async () => {
-        const snap = await getDocs(collection(db, "quizzes"));
-        const sel = document.getElementById('sQuiz');
-        sel.innerHTML = '<option value="">-- Choose Quiz Bank --</option>';
-        snap.forEach(d => { quizzes.push({id: d.id, ...d.data()}); sel.innerHTML += `<option value="${d.id}">${d.data().bankName}</option>`; });
+        try {
+            const snap = await getDocs(collection(db, "quizzes"));
+            const sel = document.getElementById('sQuiz');
+            const btn = document.getElementById('startBtn');
+            
+            if (snap.empty) {
+                sel.innerHTML = '<option>No quizzes found in cloud.</option>';
+                btn.innerText = "Check Admin Panel";
+                return;
+            }
+
+            sel.innerHTML = '<option value="">-- Choose Quiz Bank --</option>';
+            snap.forEach(d => {
+                quizzes.push({id: d.id, ...d.data()});
+                sel.innerHTML += `<option value="${d.id}">${d.data().bankName}</option>`;
+            });
+
+            btn.innerText = "Start Examination";
+            btn.disabled = false;
+        } catch (e) {
+            console.error("Firebase Error:", e);
+            document.getElementById('startBtn').innerText = "Database Error";
+            alert("Could not connect to Firebase. Check your Internet or Rules!");
+        }
     };
 
+    // --- START LOGIC WITH SMART SCATTER ---
     window.startExam = () => {
         const name = document.getElementById('sName').value;
-        const selected = quizzes.find(q => q.id === document.getElementById('sQuiz').value);
-        if(!name || !selected) return alert("Fill details!");
+        const quizId = document.getElementById('sQuiz').value;
+        const selected = quizzes.find(q => q.id === quizId);
 
-        // SMART SCATTER LOGIC
-        activeQuiz = JSON.parse(JSON.stringify(selected)); // Clone
-        activeQuiz.questions = shuffle(activeQuiz.questions); // Scatter Questions
+        if(!name || !selected) return alert("Please enter your name and select a quiz!");
 
+        // 1. CLONE & SCATTER QUESTIONS
+        activeQuiz = JSON.parse(JSON.stringify(selected));
+        activeQuiz.questions = shuffle(activeQuiz.questions);
+
+        // 2. SCATTER OPTIONS & REMAP KEY
         activeQuiz.questions.forEach(q => {
-            const correctText = q.options.find(o => o.trim().toUpperCase().startsWith(q.correct))
-                                 .replace(/^[A-D][\.\)\s-]*/i, "").trim();
+            // Find correct text before shuffling
+            const correctLine = q.options.find(o => o.trim().toUpperCase().startsWith(q.correct));
+            const correctText = correctLine.replace(/^[A-D][\.\)\s-]/i, "").trim();
             
-            let cleanOptions = q.options.map(o => o.replace(/^[A-D][\.\)\s-]*/i, "").trim());
-            cleanOptions = shuffle(cleanOptions); // Scatter Options
+            // Shuffle pure text
+            let cleanOptions = q.options.map(o => o.replace(/^[A-D][\.\)\s-]/i, "").trim());
+            cleanOptions = shuffle(cleanOptions);
 
+            // Re-assign A-D
             q.options = cleanOptions.map((text, i) => `${String.fromCharCode(65 + i)}) ${text}`);
             q.correct = String.fromCharCode(65 + cleanOptions.indexOf(correctText));
         });
@@ -106,11 +148,16 @@
 
     function renderQ() {
         const q = activeQuiz.questions[curIdx];
-        document.getElementById('qText').innerText = (curIdx + 1) + ". " + q.question;
-        const cont = document.getElementById('opts'); cont.innerHTML = "";
+        document.getElementById('qText').innerText = `${curIdx + 1}. ${q.question}`;
+        const cont = document.getElementById('opts'); 
+        cont.innerHTML = "";
+
         q.options.forEach(o => {
-            const b = document.createElement('button'); b.className = 'opt-btn'; b.innerText = o;
-            b.onclick = () => handleAnswer(o, b); cont.appendChild(b);
+            const b = document.createElement('button');
+            b.className = 'opt-btn';
+            b.innerText = o;
+            b.onclick = () => handleAnswer(o, b);
+            cont.appendChild(b);
         });
         runTimer();
     }
@@ -132,17 +179,34 @@
         const q = activeQuiz.questions[curIdx];
         const picked = sel ? sel.trim().charAt(0).toUpperCase() : "TIMEOUT";
         const isCorrect = picked === q.correct;
+        
         const all = document.querySelectorAll('.opt-btn');
         all.forEach(b => b.disabled = true);
 
-        if(isCorrect) { score++; if(btn) btn.classList.add('correct'); }
-        else {
+        if(isCorrect) { 
+            score++; 
+            if(btn) btn.classList.add('correct'); 
+        } else {
             if(btn) btn.classList.add('wrong');
-            all.forEach(b => { if(b.innerText.trim().charAt(0).toUpperCase() === q.correct) b.classList.add('correct'); });
+            all.forEach(b => {
+                if(b.innerText.trim().charAt(0).toUpperCase() === q.correct) b.classList.add('correct');
+            });
         }
 
-        detailed.push({ question: q.question, options: q.options, selected: picked, correct: q.correct, explanation: q.explanation, isCorrect });
-        setTimeout(() => { curIdx++; if(curIdx < activeQuiz.questions.length) renderQ(); else finishExam(); }, 1500);
+        detailed.push({ 
+            question: q.question, 
+            options: q.options, 
+            selected: picked, 
+            correct: q.correct, 
+            explanation: q.explanation, 
+            isCorrect: isCorrect 
+        });
+
+        setTimeout(() => {
+            curIdx++;
+            if(curIdx < activeQuiz.questions.length) renderQ();
+            else finishExam();
+        }, 1500);
     }
 
     async function finishExam() {
@@ -151,10 +215,10 @@
         const final = Math.round((score/activeQuiz.questions.length)*100);
         document.getElementById('fScore').innerText = final + "%";
 
-        document.getElementById('reviewList').innerHTML = '<h2 style="margin-top:20px">Detailed Review</h2>' + detailed.map(a => `
+        document.getElementById('reviewArea').innerHTML = '<h2 style="margin-top:20px">Detailed Review</h2>' + detailed.map(a => `
             <div class="card" style="background:${a.isCorrect ? '#dcfce7':'#fee2e2'}; border-left:5px solid ${a.isCorrect ? '#22c55e':'#ef4444'}">
                 <b>${a.question}</b><br>
-                <div style="font-size:0.85em; margin:10px 0;">${a.options.join('<br>')}</div>
+                <div style="font-size:0.85em; margin:10px 0; color:#475569;">${a.options.join('<br>')}</div>
                 <hr style="opacity:0.1">
                 <b>Your Pick: ${a.selected} | Correct: ${a.correct}</b><br>
                 <div style="margin-top:10px; background:white; padding:10px; border-radius:6px; font-size:0.9em; border: 1px solid rgba(0,0,0,0.05)">
@@ -163,7 +227,13 @@
             </div>
         `).join('');
 
-        await addDoc(collection(db, "results"), { studentName: document.getElementById('sName').value, quizName: activeQuiz.bankName, score: final, detailedAnswers: detailed, date: new Date().toLocaleString() });
+        await addDoc(collection(db, "results"), {
+            studentName: document.getElementById('sName').value,
+            quizName: activeQuiz.bankName,
+            score: final,
+            detailedAnswers: detailed,
+            date: new Date().toLocaleString()
+        });
     }
 </script>
 </body>
