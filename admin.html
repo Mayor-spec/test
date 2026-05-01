@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin Dashboard - AI Quiz Pro</title>
+    <title>Admin Dashboard - Debug Edition</title>
     <style>
         :root { --primary: #4f46e5; --bg: #f8fafc; --text: #1e293b; --success: #10b981; --danger: #ef4444; }
         body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 20px; }
@@ -48,21 +48,20 @@
 
             <div id="createSec">
                 <div class="card">
-                    <h3>New Bank Setup</h3>
-                    <input type="text" id="bankName" placeholder="Bank Name (e.g. Organic Chemistry)">
-                    <input type="number" id="qTimer" placeholder="Seconds per question (e.g. 30)">
+                    <input type="text" id="bankName" placeholder="Bank Name (e.g. CHM 102)">
+                    <input type="number" id="qTimer" placeholder="Seconds per question">
                     <textarea id="aiText" placeholder="Paste AI Questions here..." style="height: 150px;"></textarea>
                     <button onclick="parseAIContent()" class="btn-primary">1. Parse & Preview</button>
                 </div>
                 <div id="previewArea" class="card hidden">
-                    <h3>Review Parsed Content</h3>
+                    <h3>Review Preview</h3>
                     <div id="previewList"></div>
-                    <button id="saveBtn" style="background:#10b981; color:white; width:100%">2. Confirm & Save to Cloud</button>
+                    <button id="saveBtn" style="background:#10b981; color:white; width:100%">2. Save to Cloud</button>
                 </div>
             </div>
 
             <div id="manageSec" class="hidden">
-                <div class="card"><table><thead><tr><th>Bank Name</th><th>Timer</th><th>Action</th></tr></thead><tbody id="bankTable"></tbody></table></div>
+                <div class="card"><table><thead><tr><th>Bank Name</th><th>Action</th></tr></thead><tbody id="bankTable"></tbody></table></div>
             </div>
 
             <div id="resultsSec" class="hidden">
@@ -99,15 +98,12 @@
 
     let tempQuestions = [];
 
-    // Cleanup: Handles Sigma, Pi, and Bond Angles from PDF LaTeX format
+    [span_4](start_span)[span_5](start_span)[span_6](start_span)// Helper: Clean symbols for CHM 102[span_4](end_span)[span_5](end_span)[span_6](end_span)
     function cleanSymbols(text) {
         return text
-            .replace(/\\sigma/g, '').replace(/sigma/gi, '')
-            .replace(/\\pi/g, '').replace(/pi/gi, '')
-            .replace(/\$109\.5\$/g, '109.5°')
-            .replace(/\$120\^\{\\circ\}\$/g, '120°')
-            .replace(/\$180\^\{\\circ\}\$/g, '180°')
-            .replace(/\$sp\^3\$/g, 'sp³').replace(/\$sp\^2\$/g, 'sp²');
+            .replace(/\\sigma/g, '').replace(/\\pi/g, '')
+            .replace(/\$sp\^3\$/g, 'sp³').replace(/\$sp\^2\$/g, 'sp²')
+            .replace(/\$109\.5\$/g, '109.5°').replace(/\$120\^\{\\circ\}\$/g, '120°');
     }
 
     document.getElementById('loginBtn').onclick = () => {
@@ -130,9 +126,8 @@
 
     window.parseAIContent = () => {
         const text = document.getElementById('aiText').value;
-        if (!text.trim()) return alert("Paste text first!");
+        if (!text.trim()) return;
         tempQuestions = [];
-
         const blocks = text.split(/\n\s*(?=\d+[\.\)\s])/);
         
         blocks.forEach(block => {
@@ -142,7 +137,6 @@
             const question = cleanSymbols(lines[0].replace(/^\d+[\.\)\s]*/, ""));
             const options = lines.filter(l => l.match(/^[A-D][\.\)\s-]/i)).map(o => cleanSymbols(o));
             
-            // Fix Answer: Specifically targeting the character after the colon
             const ansLine = lines.find(l => l.toLowerCase().includes("correct answer"));
             let correct = "A";
             if (ansLine) {
@@ -152,7 +146,7 @@
             }
 
             const expLine = lines.find(l => l.toLowerCase().match(/explanation|rationale/));
-            const explanation = cleanSymbols(expLine ? expLine.split(/explanation:|rationale:/i).pop().trim() : "See source material.");
+            const explanation = cleanSymbols(expLine ? expLine.split(/explanation:|rationale:/i).pop().trim() : "No explanation.");
 
             if (question && options.length > 0) {
                 tempQuestions.push({ question, options, correct, explanation });
@@ -162,8 +156,8 @@
         document.getElementById('previewList').innerHTML = tempQuestions.map((q, i) => `
             <div class="preview-item">
                 <b>${i+1}. ${q.question}</b><br>
-                <div style="font-size:0.85em; color:#64748b; margin:5px 0;">${q.options.join(' | ')}</div>
-                <span style="color:green; font-weight:bold;">Parsed Ans: ${q.correct}</span> | <small><i>${q.explanation}</i></small>
+                <small>${q.options.join(' | ')}</small><br>
+                <span style="color:green">Ans: ${q.correct}</span> | <small>Explanator: ${q.explanation}</small>
             </div>
         `).join('');
         document.getElementById('previewArea').classList.remove('hidden');
@@ -177,28 +171,21 @@
                 questions: tempQuestions,
                 date: new Date()
             });
-            alert("Quiz Saved Successfully!"); location.reload();
-        } catch(e) { alert("Permission Error. Ensure you are logged in as admin."); }
+            alert("Saved!"); location.reload();
+        } catch(e) { alert("Permission Error: " + e.message); }
     };
 
     async function loadBanks() {
         const snap = await getDocs(collection(db, "quizzes"));
-        const body = document.getElementById('bankTable');
-        body.innerHTML = "";
-        snap.forEach(d => {
-            body.innerHTML += `<tr><td>${d.data().bankName}</td><td>${d.data().timePerQuestion}s</td><td><button onclick="delBank('${d.id}')" class="btn-danger">Delete</button></td></tr>`;
-        });
+        const body = document.getElementById('bankTable'); body.innerHTML = "";
+        snap.forEach(d => { body.innerHTML += `<tr><td>${d.data().bankName}</td><td><button onclick="delBank('${d.id}')" class="btn-danger">Delete</button></td></tr>`; });
     }
-    window.delBank = async (id) => { if(confirm("Delete Bank?")) { await deleteDoc(doc(db, "quizzes", id)); loadBanks(); }};
+    window.delBank = async (id) => { if(confirm("Delete?")) { await deleteDoc(doc(db, "quizzes", id)); loadBanks(); }};
 
     async function loadResults() {
         const snap = await getDocs(query(collection(db, "results"), orderBy("date", "desc")));
-        const body = document.getElementById('resTable');
-        body.innerHTML = "";
-        snap.forEach(d => {
-            const r = d.data();
-            body.innerHTML += `<tr><td>${r.studentName}</td><td>${r.quizName}</td><td>${r.score}%</td><td><button onclick="viewDetail('${d.id}')" class="btn-primary">View Breakdown</button></td></tr>`;
-        });
+        const body = document.getElementById('resTable'); body.innerHTML = "";
+        snap.forEach(d => { const r = d.data(); body.innerHTML += `<tr><td>${r.studentName}</td><td>${r.quizName}</td><td>${r.score}%</td><td><button onclick="viewDetail('${d.id}')" class="btn-primary">View</button></td></tr>`; });
     }
 
     window.viewDetail = async (id) => {
@@ -208,10 +195,10 @@
         document.getElementById('mList').innerHTML = r.detailedAnswers.map(a => `
             <div style="margin-bottom:15px; padding:15px; border-radius:10px; background:${a.isCorrect ? '#dcfce7':'#fee2e2'}">
                 <b>${a.question}</b><br>
-                <div style="font-size:0.85em; margin:8px 0;">${a.options.join('<br>')}</div>
+                <div style="font-size:0.85em; margin:8px 0;">${a.options ? a.options.join('<br>') : 'Options missing.'}</div>
                 <hr style="opacity:0.1">
                 <b>Picked: ${a.selected} | Correct: ${a.correct}</b><br>
-                <div style="font-size:0.8em; margin-top:5px; font-style:italic"> Explanator: ${a.explanation}</div>
+                <small><i> ${a.explanation}</i></small>
             </div>
         `).join('');
         document.getElementById('resModal').classList.remove('hidden');
