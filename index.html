@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Student Exam Portal</title>
+    <title>Student Portal - Live Exam</title>
     <style>
         :root { --primary: #4f46e5; --bg: #f1f5f9; --text: #1e293b; --success: #22c55e; --danger: #ef4444; }
         body { font-family: 'Inter', sans-serif; background: var(--bg); margin: 0; padding: 20px; }
@@ -13,17 +13,17 @@
         
         /* Timer */
         .timer-wrap { height: 8px; background: #e2e8f0; border-radius: 4px; overflow: hidden; margin-bottom: 20px; }
-        #timerFill { height: 100%; background: var(--danger); width: 100%; transition: linear 1s; }
+        #timerBar { height: 100%; background: var(--danger); width: 100%; transition: linear 1s; }
 
         input, select { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #cbd5e1; border-radius: 8px; box-sizing: border-box; }
         button { width: 100%; padding: 14px; border-radius: 8px; cursor: pointer; font-weight: bold; border: none; margin-top: 10px; }
         .btn-main { background: var(--primary); color: white; }
         
-        .opt-btn { background: #f8fafc; border: 1px solid #e2e8f0; text-align: left; margin-bottom: 8px; width: 100%; transition: 0.2s; }
+        .opt-btn { background: #f8fafc; border: 1px solid #e2e8f0; text-align: left; margin-bottom: 8px; width: 100%; }
         .opt-btn.correct { background: #dcfce7 !important; border-color: var(--success) !important; color: #166534; }
         .opt-btn.wrong { background: #fee2e2 !important; border-color: var(--danger) !important; color: #991b1b; }
 
-        .admin-nav { position: fixed; bottom: 0; left: 0; width: 100%; background: white; padding: 15px; text-align: center; border-top: 1px solid #e2e8f0; }
+        .admin-nav { position: fixed; bottom: 0; left: 0; width: 100%; background: white; padding: 15px; text-align: center; border-top: 1px solid #e2e8f0; z-index: 100; }
         .btn-admin { background: #64748b; color: white; padding: 10px 25px; text-decoration: none; border-radius: 6px; font-weight: bold; }
     </style>
 </head>
@@ -33,13 +33,13 @@
         <div id="setup" class="card">
             <h1>Student Portal</h1>
             <input type="text" id="sName" placeholder="Enter Full Name">
-            <select id="sQuiz"><option>Loading exams...</option></select>
+            <select id="sQuiz"><option>Fetching exams...</option></select>
             <button onclick="startExam()" class="btn-main">Start Examination</button>
         </div>
 
         <div id="quiz" class="hidden">
             <div id="tLabel" style="text-align:right; font-weight:bold; color:var(--danger)">0s</div>
-            <div class="timer-wrap"><div id="timerFill"></div></div>
+            <div class="timer-wrap"><div id="timerBar"></div></div>
             <div class="card">
                 <h2 id="qText">Question</h2>
                 <div id="opts"></div>
@@ -51,7 +51,7 @@
                 <h1>Final Score: <span id="fScore">0%</span></h1>
                 <button onclick="location.reload()" style="background:#64748b; color:white">Take Another Test</button>
             </div>
-            <div id="reviewList"></div>
+            <div id="reviewArea"></div>
         </div>
     </div>
 
@@ -87,7 +87,7 @@
     window.startExam = () => {
         const name = document.getElementById('sName').value;
         activeQuiz = quizzes.find(q => q.id === document.getElementById('sQuiz').value);
-        if(!name || !activeQuiz) return alert("Please fill name and select exam!");
+        if(!name || !activeQuiz) return alert("Fill name and select exam!");
         document.getElementById('setup').classList.add('hidden');
         document.getElementById('quiz').classList.remove('hidden');
         renderQ();
@@ -111,7 +111,7 @@
         timer = setInterval(() => {
             time--;
             document.getElementById('tLabel').innerText = time + "s";
-            document.getElementById('timerFill').style.width = (time/total)*100 + "%";
+            document.getElementById('timerBar').style.width = (time/total)*100 + "%";
             if(time <= 0) { clearInterval(timer); handleAnswer(null, null); }
         }, 1000);
     }
@@ -122,7 +122,6 @@
         const picked = sel ? sel.trim().charAt(0).toUpperCase() : "TIMEOUT";
         const isCorrect = picked === q.correct;
         
-        // Disable buttons & show feedback
         const all = document.querySelectorAll('.opt-btn');
         all.forEach(b => b.disabled = true);
 
@@ -132,14 +131,7 @@
             all.forEach(b => { if(b.innerText.trim().charAt(0).toUpperCase() === q.correct) b.classList.add('correct'); });
         }
 
-        detailed.push({ 
-            question: q.question, 
-            options: q.options, 
-            selected: picked, 
-            correct: q.correct, 
-            explanation: q.explanation, 
-            isCorrect 
-        });
+        detailed.push({ question: q.question, options: q.options, selected: picked, correct: q.correct, explanation: q.explanation, isCorrect });
 
         setTimeout(() => {
             curIdx++;
@@ -154,15 +146,14 @@
         const final = Math.round((score/activeQuiz.questions.length)*100);
         document.getElementById('fScore').innerText = final + "%";
 
-        const rev = document.getElementById('reviewList');
-        rev.innerHTML = '<h2 style="margin-top:20px">Answer Review & AI Explanations</h2>' + detailed.map(a => `
+        document.getElementById('reviewArea').innerHTML = '<h2 style="margin-top:20px">Answer Review & AI Explanations</h2>' + detailed.map(a => `
             <div class="card" style="background:${a.isCorrect ? '#dcfce7':'#fee2e2'}; border-left:5px solid ${a.isCorrect ? '#22c55e':'#ef4444'}">
                 <b>${a.question}</b><br>
                 <div style="font-size:0.85em; margin:10px 0;">${a.options.join('<br>')}</div>
                 <hr style="opacity:0.1">
-                <b>Your Pick: ${a.selected} | Correct: ${a.correct}</b><br>
+                <b>Picked: ${a.selected} | Correct: ${a.correct}</b><br>
                 <div style="background:rgba(255,255,255,0.5); padding:10px; border-radius:6px; margin-top:10px; font-size:0.9em;">
-                    <strong>💡 AI Explanation:</strong> ${a.explanation}
+                    <strong>💡 AI Explanator:</strong> ${a.explanation}
                 </div>
             </div>
         `).join('');
